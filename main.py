@@ -3,6 +3,7 @@ import OpenGL.GL as gl
 import imgui
 from imgui.integrations.glfw import GlfwRenderer
 from pathlib import Path
+import json
 
 
 def main():
@@ -29,12 +30,22 @@ def main():
     style = imgui.get_style()
     imgui.style_colors_light(style)
 
-    # Variable holding to do list
-    todo_list_content = "Nothing in the file yet."
-
     # Buffer for input text
     MAX_LEN = 256
     new_item_buffer = "\0" * MAX_LEN # buffer of 256 null characters
+
+    def todo_data_formatted(todo_data): # function to format todo data for display
+        # converts the json dictionaries to string for display in window
+        if not todo_data: # check if empty
+            return "Your To-Do list is empty."
+        formatted_lines = []
+        for i, task_item in enumerate(todo_data): # iterate through each task dictionary
+            status = "[x]" if task_item.get("done", False) else "[ ]" # check if done
+            task_text = task_item.get("task", "untitled task") # get task text if key is missing
+            formatted_lines.append(f"{i + 1}. {status} {task_text}") # format line
+        return "\n".join(formatted_lines)
+
+    display_string = "" 
 
     # Main loop
     while not glfw.window_should_close(window):
@@ -90,26 +101,31 @@ def main():
                     _, new_item_buffer = imgui.input_text("New todo item", new_item_buffer, MAX_LEN)
 
                     if imgui.button("Load to do list"):
-                        if Path("todo.txt").is_file(): # Check if file exists
-                            with open("todo.txt", "r") as f:
-                                todo_list_content = f.read()
+                        if Path("todo.json").is_file(): # Check if file exists
+                            with open("todo.json", "r") as f:
+                                todo_data = json.load(f)
+
+                                display_string = todo_data_formatted(todo_data) # format the data for display
                         else:
-                            todo_list_content = "todo.txt file not found."
-                        
+                            todo_data = []
+
                     #imgui.separator()
 
                     if imgui.button("Save to do list"):
-                        new_item = new_item_buffer.split("\0", 1)[0].strip() # Get string up to first null character and strip whitespace
+                        new_item_text = new_item_buffer.split("\0", 1)[0].strip() # Get string up to first null character and strip whitespace
 
-                        if new_item: # check if input is not empty
-                            with open("todo.txt", "a") as f:
-                                f.write(new_item + "\n\n")
+                        if new_item_text: # check if input is not empty
+                            new_task = {"task": new_item_text, "done": False}
+                            todo_data.append(new_task)
+
+                            with open("todo.json", "w") as f:
+                                json.dump(todo_data, f, indent=4) # dump full list
                                 new_item_buffer = "\0" * MAX_LEN # Clear input buffer
 
                     #imgui.text_colored("", 0.0, 0.9, 0.6)
                     imgui.separator()
                     
-                    imgui.text(todo_list_content)
+                    imgui.text(display_string)
 
                     imgui.end_tab_item()
 
